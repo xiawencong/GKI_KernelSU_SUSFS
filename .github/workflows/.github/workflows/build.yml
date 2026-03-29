@@ -1,0 +1,43 @@
+name: Build Kernel
+on:
+  workflow_dispatch:
+    inputs:
+      device_codename:
+        description: "Device codename"
+        required: true
+        default: "mondrian"
+      is_slot_device:
+        description: "Is A/B device?"
+        required: true
+        default: "1"
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+          
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential gcc-aarch64-linux-gnu bison flex libssl-dev bc zip
+          
+      - name: Build kernel
+        run: |
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- defconfig
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- -j$(nproc)
+          
+      - name: Pack with AnyKernel3
+        run: |
+          git clone https://github.com/osm0sis/AnyKernel3.git
+          cp arch/arm64/boot/Image* AnyKernel3/
+          cd AnyKernel3
+          zip -r9 kernel-mondrian.zip * -x .git README.md *placeholder
+          
+      - name: Upload kernel zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-mondrian
+          path: AnyKernel3/kernel-mondrian.zip
